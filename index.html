@@ -130,13 +130,13 @@
         "ULIOCES",
         "ALEJANDRO_S",
       ];
-      let data = []; //JSON.parse(localStorage.getItem("porraData")) || [];
+      let data = [];//JSON.parse(localStorage.getItem("porraData")) || [];
 
       // Nueva función para cargar archivo inicial
       async function loadInitialData() {
         if (data.length > 0) return; // No cargar si ya hay datos locales
         try {
-          const response = await fetch("data.xlsx");
+          const response = await fetch("porra_data.xlsx");
           if (!response.ok) return;
           const arrayBuffer = await response.arrayBuffer();
           const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: "array" });
@@ -149,13 +149,33 @@
       }
 
       function getRanking(row) {
-        return participants
-          .map((p) => ({
-            name: p,
-            pts: parseInt(row[p + "_pts"]) || 0,
-            pl: parseInt(row[p + "_pl"]) || 0,
-          }))
-          .sort((a, b) => b.pts - a.pts || b.pl - a.pl);
+        // Obtenemos los datos, pero mantenemos la estructura original para procesar empates
+        let participantsData = participants.map((p) => ({
+          name: p,
+          pts: parseInt(row[p + "_pts"]) || 0,
+          pl: parseInt(row[p + "_pl"]) || 0,
+        }));
+
+        // Ordenamos primero para definir jerarquía
+        participantsData.sort((a, b) => b.pts - a.pts || b.pl - a.pl);
+
+        // Asignamos posiciones considerando empates
+        let ranked = [];
+        let currentPos = 1;
+        for (let i = 0; i < participantsData.length; i++) {
+          if (
+            i > 0 &&
+            participantsData[i].pts === participantsData[i - 1].pts &&
+            participantsData[i].pl === participantsData[i - 1].pl
+          ) {
+            // Es igual al anterior, mantiene la misma posición
+            ranked.push({ ...participantsData[i], rank: ranked[i - 1].rank });
+          } else {
+            // Es distinto, su posición es i + 1
+            ranked.push({ ...participantsData[i], rank: i + 1 });
+          }
+        }
+        return ranked;
       }
 
       function updateSummary() {
@@ -210,15 +230,15 @@
           diffData = participants.map(() => []);
 
         data.forEach((row) => {
-          let rankings = getRanking(row);
+          let rankings = getRanking(row); // Ahora ya trae la propiedad .rank
           participants.forEach((p, i) => {
-            const rank = rankings.findIndex((r) => r.name === p) + 1;
+            const pData = rankings.find(r => r.name === p);
+            const rank = pData ? pData.rank : 1; 
             const pts = parseInt(row[p + "_pts"]) || 0;
+            
             posData[i].push(rank);
             ptsData[i].push(pts);
-            diffData[i].push(
-              prevRow ? pts - (parseInt(prevRow[p + "_pts"]) || 0) : pts,
-            );
+            diffData[i].push(prevRow ? pts - (parseInt(prevRow[p + "_pts"]) || 0) : pts);
           });
           prevRow = row;
         });
