@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Evolución Porra Completa</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --text: #f8fafc;
+        --accent: #38bdf8;
+      }
+      body {
+        font-family: sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 20px;
+      }
+      .container {
+        max-width: 1000px;
+        margin: auto;
+      }
+      canvas {
+        background: #1e293b;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 30px;
+        width: 100%;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      th,
+      td {
+        border: 1px solid #334155;
+        padding: 8px;
+        text-align: center;
+      }
+      button {
+        cursor: pointer;
+        background: var(--accent);
+        border: none;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 5px;
+      }
+      input {
+        width: 50px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Evolución del Ranking</h1>
+      <h3>Posiciones</h3>
+      <canvas id="evolucionChart" height="500"></canvas>
+      <h3>Puntuación Absoluta</h3>
+      <canvas id="puntosChart" height="700"></canvas>
+      <h3>Puntos Ganados (Diferencia vs Fecha Anterior)</h3>
+      <canvas id="diferenciaChart" height="500"></canvas>
+
+      <div id="controls">
+        <button onclick="addRow()">+ Agregar Fecha</button>
+        <button onclick="exportExcel()">Exportar Excel</button>
+        <button onclick="document.getElementById('fileInput').click()">
+          📁 Importar Excel
+        </button>
+        <input
+          type="file"
+          id="fileInput"
+          style="display: none"
+          onchange="importExcel(event)"
+          accept=".xlsx, .xls"
+        />
+      </div>
+
+      <table id="dataTable">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>CFVELEZM</th>
+            <th>ALEJANDRO_P</th>
+            <th>ALEJANDRO_N</th>
+            <th>ULIOCES</th>
+            <th>ALEJANDRO_S</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+
+    <script>
+      // Registrar el plugin globalmente
+      Chart.register(ChartDataLabels);
+
+      const colors = ["#f87171", "#fbbf24", "#34d399", "#38bdf8", "#c084fc"];
+      let data = JSON.parse(localStorage.getItem("porraData")) || [];
+      const participants = [
+        "CFVELEZM",
+        "ALEJANDRO_P",
+        "ALEJANDRO_N",
+        "ULIOCES",
+        "ALEJANDRO_S",
+      ];
+
+      function renderTable() {
+        const body = document.getElementById("tableBody");
+        body.innerHTML = "";
+        data.forEach((row, index) => {
+          body.innerHTML += `<tr>
+            <td><input type="text" value="${row.fecha}" onchange="updateRow(${index}, 'fecha', this.value)" style="width: 80px;"></td>
+            ${participants.map((p) => `<td><input type="number" value="${row[p] || 0}" onchange="updateRow(${index}, '${p}', this.value)"></td>`).join("")}
+            <td><button onclick="deleteRow(${index})">❌</button></td>
+          </tr>`;
+        });
+        updateCharts();
+        localStorage.setItem("porraData", JSON.stringify(data));
+      }
+
+      function updateCharts() {
+        const ctxPos = document
+          .getElementById("evolucionChart")
+          .getContext("2d");
+        const ctxPts = document.getElementById("puntosChart").getContext("2d");
+        const ctxDiff = document
+          .getElementById("diferenciaChart")
+          .getContext("2d");
+
+        const commonOptions = {
+          plugins: {
+            datalabels: {
+              color: "#ffffff",
+              anchor: "end",
+              align: "top",
+              formatter: (value) => value,
+            },
+          },
+        };
+
+        const posDatasets = participants.map((p, i) => ({
+          label: p,
+          data: [],
+          borderColor: colors[i % colors.length],
+          tension: 0.3,
+          borderWidth: 3,
+        }));
+        const ptsDatasets = participants.map((p, i) => ({
+          label: p,
+          data: [],
+          borderColor: colors[i % colors.length],
+          tension: 0.3,
+          borderWidth: 3,
+        }));
+        const diffDatasets = participants.map((p, i) => ({
+          label: p,
+          data: [],
+          backgroundColor: colors[i % colors.length],
+        }));
+
+        let prevRow = null;
+        data.forEach((row) => {
+          let rankings = participants.map((p) => ({
+            name: p,
+            points: parseInt(row[p]) || 0,
+          }));
+          rankings.sort((a, b) => b.points - a.points);
+          let posMap = {};
+          let currentRank = 1;
+          rankings.forEach((r, i) => {
+            if (i > 0 && r.points < rankings[i - 1].points) currentRank = i + 1;
+            posMap[r.name] = currentRank;
+          });
+
+          participants.forEach((p, i) => {
+            let currentVal = parseInt(row[p]) || 0;
+            posDatasets[i].data.push(posMap[p]);
+            ptsDatasets[i].data.push(currentVal);
+            diffDatasets[i].data.push(
+              prevRow ? currentVal - (parseInt(prevRow[p]) || 0) : currentVal,
+            );
+          });
+          prevRow = row;
+        });
+
+        if (window.myChart) window.myChart.destroy();
+        if (window.ptsChart) window.ptsChart.destroy();
+        if (window.diffChart) window.diffChart.destroy();
+
+        window.myChart = new Chart(ctxPos, {
+          type: "line",
+          data: { labels: data.map((d) => d.fecha), datasets: posDatasets },
+          options: {
+            scales: {
+              y: {
+                reverse: true,
+                min: 0,
+                max: 6,
+                ticks: { stepSize: 1, color: "#fff" },
+              },
+              x: { ticks: { color: "#fff" } },
+            },
+          },
+        });
+
+        // Gráfico con etiquetas aplicadas
+        window.ptsChart = new Chart(ctxPts, {
+          type: "line",
+          data: { labels: data.map((d) => d.fecha), datasets: ptsDatasets },
+          options: {
+            plugins: {
+              datalabels: {
+                color: "#fff",
+                anchor: "end",
+                align: "top",
+                display: false,
+              },
+            },
+            scales: {
+              y: { ticks: { color: "#fff" } },
+              x: { ticks: { color: "#fff" } },
+            },
+          },
+        });
+
+        window.diffChart = new Chart(ctxDiff, {
+          type: "bar",
+          data: { labels: data.map((d) => d.fecha), datasets: diffDatasets },
+          options: {
+            plugins: {
+              datalabels: {
+                color: "#fff", // Texto en negro
+                //backgroundColor: "rgba(255, 255, 255, 0.7)", // Fondo blanco traslúcido para legibilidad
+                borderRadius: 0,
+                anchor: "end",
+                align: "top",
+                rotation: 0, // Rotado para que entre en la barra
+                font: {
+                  //weight: "bold",
+                  size: 10,
+                },
+                // Aquí mostramos Nombre: Valor
+                formatter: (value, context) => {
+                  const name =
+                    context.chart.data.datasets[context.datasetIndex].label;
+                  return value !== 0 ? `${value}` : "";
+                },
+              },
+            },
+            scales: {
+              y: { ticks: { color: "#fff" } },
+              x: { ticks: { color: "#fff" } },
+            },
+          },
+        });
+      }
+
+      function addRow() {
+        data.push({
+          fecha: "00/00",
+          CFVELEZM: 0,
+          ALEJANDRO_P: 0,
+          ALEJANDRO_N: 0,
+          ULIOCES: 0,
+          ALEJANDRO_S: 0,
+        });
+        renderTable();
+      }
+      function updateRow(i, k, v) {
+        data[i][k] = v;
+        renderTable();
+      }
+      function deleteRow(i) {
+        data.splice(i, 1);
+        renderTable();
+      }
+      function exportExcel() {
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Evolucion");
+        XLSX.writeFile(wb, "porra_data.xlsx");
+      }
+      function importExcel(e) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const wb = XLSX.read(new Uint8Array(ev.target.result), {
+            type: "array",
+          });
+          data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+          renderTable();
+        };
+        reader.readAsArrayBuffer(e.target.files[0]);
+      }
+
+      renderTable();
+    </script>
+  </body>
+</html>
