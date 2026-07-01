@@ -249,8 +249,9 @@
           const pPl = prevP ? prevP.pl : 0;
           const diffSuperior = i > 0 ? currentRank[i - 1].pts - r.pts : "-";
           const showRey = isMax ? " 👑" : '';
+          const styleLoser = !isMax && r.rank == 4 ? ';background: #f9120638;' : '';
 
-          body.innerHTML += `<tr style="${styleMax}">
+          body.innerHTML += `<tr style="${styleMax} ${styleLoser}">
             <td>${r.rank}º</td>
             <td>${r.name}${showRey}</td>
             <td>${r.pts}</td>
