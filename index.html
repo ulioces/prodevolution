@@ -22,6 +22,21 @@
         max-width: 1100px;
         margin: auto;
       }
+      .nav-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        justify-content: center;
+        margin-top: 20px;
+      }
+      .nav-btn {
+        background: var(--accent);
+        border: none;
+        padding: 5px 15px;
+        cursor: pointer;
+        border-radius: 4px;
+        font-weight: bold;
+      }
       canvas {
         background: #1e293b;
         border-radius: 8px;
@@ -41,6 +56,16 @@
         padding: 8px;
         text-align: center;
       }
+      input {
+        width: 40px;
+        text-align: center;
+      }
+      .input-group {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+      }
       button {
         cursor: pointer;
         background: var(--accent);
@@ -49,23 +74,18 @@
         border-radius: 4px;
         margin: 2px;
       }
-      .input-group {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        justify-content: center;
-      }
-      input {
-        width: 40px;
-        text-align: center;
-      }
     </style>
   </head>
   <body>
     <div class="container">
       <h1>Evolución del Ranking</h1>
 
-      <h2>Resumen Actual</h2>
+      <div class="nav-header">
+        <button class="nav-btn" onclick="changeDate(1)">◀</button>
+        <h2 id="summaryTitle">Resumen Actual</h2>
+        <button class="nav-btn" onclick="changeDate(-1)">▶</button>
+      </div>
+
       <table id="summaryTable" style="background: #1e293b; margin-bottom: 30px">
         <thead>
           <tr style="background: #334155">
@@ -131,10 +151,10 @@
         "ALEJANDRO_S",
       ];
       let data = [];//JSON.parse(localStorage.getItem("porraData")) || [];
+      let currentIndex = -1; // -1 es el último registro
 
-      // Nueva función para cargar archivo inicial
       async function loadInitialData() {
-        if (data.length > 0) return; // No cargar si ya hay datos locales
+        if (data.length > 0) return;
         try {
           const response = await fetch("data.xlsx");
           if (!response.ok) return;
@@ -142,23 +162,19 @@
           const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: "array" });
           data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
           renderTable();
-          console.log("Leyo el archivo.");
-        } catch (e) {
-          console.log("Archivo inicial no encontrado o error al cargar.");
-        }
+        } catch (e) {}
       }
 
       function getRanking(row) {
-        // Obtenemos los datos, pero mantenemos la estructura original para procesar empates
-        let participantsData = participants.map((p) => ({
-          name: p,
-          pts: parseInt(row[p + "_pts"]) || 0,
-          pl: parseInt(row[p + "_pl"]) || 0,
-        }));
+        let participantsData = participants
+          .map((p) => ({
+            name: p,
+            pts: parseInt(row[p + "_pts"]) || 0,
+            pl: parseInt(row[p + "_pl"]) || 0,
+          }))
+          .sort((a, b) => b.pts - a.pts || b.pl - a.pl);
 
-        // Ordenamos primero para definir jerarquía
-        participantsData.sort((a, b) => b.pts - a.pts || b.pl - a.pl);
-
+        
         // Asignamos posiciones considerando empates
         let ranked = [];
         let currentPos = 1;
@@ -178,42 +194,45 @@
         return ranked;
       }
 
+function changeDate(dir) {
+    if (data.length === 0) return;
+    currentIndex = (currentIndex + dir + data.length) % data.length;
+    updateSummary();
+}
+
       function updateSummary() {
         const body = document.getElementById("summaryBody");
+        const title = document.getElementById("summaryTitle");
         body.innerHTML = "";
         if (data.length === 0) return;
 
-        const currentRank = getRanking(data[data.length - 1]);
-        const prevRank =
-          data.length > 1 ? getRanking(data[data.length - 2]) : null;
+        const targetIdx = currentIndex === -1 ? data.length - 1 : currentIndex;
+        title.innerText = `Resumen: ${data[targetIdx].fecha || "Jornada " + (targetIdx + 1)}`;
+
+        const currentRank = getRanking(data[targetIdx]);
+        const prevRank = targetIdx > 0 ? getRanking(data[targetIdx - 1]) : null;
 
         currentRank.forEach((r, i) => {
-          const currentPos = i + 1;
-          const prevPos = prevRank
-            ? prevRank.findIndex((p) => p.name === r.name) + 1
-            : currentPos;
-          const diffPos = prevPos - currentPos;
+          const prevP = prevRank
+            ? prevRank.find((p) => p.name === r.name)
+            : null;
+          const diffPos = prevP ? prevP.rank - r.rank : 0;
+          let tendencia =
+            diffPos > 0
+              ? `⬆️ +${diffPos}`
+              : diffPos < 0
+                ? `⬇️ ${diffPos}`
+                : "🟰";
+          let colorT =
+            diffPos > 0 ? "#34d399" : diffPos < 0 ? "#f87171" : "#fff";
 
-          let tendencia = "🟰";
-          let colorT = "#fff";
-          if (diffPos > 0) {
-            tendencia = `⬆️ +${diffPos}`;
-            colorT = "#34d399";
-          } else if (diffPos < 0) {
-            tendencia = `⬇️ ${diffPos}`;
-            colorT = "#f87171";
-          }
-
-          const prevData = data.length > 1 ? data[data.length - 2] : {};
-          const pPts = parseInt(prevData[r.name + "_pts"]) || 0;
-          const pPl = parseInt(prevData[r.name + "_pl"]) || 0;
+          const pPts = prevP ? prevP.pts : 0;
+          const pPl = prevP ? prevP.pl : 0;
           const diffSuperior = i > 0 ? currentRank[i - 1].pts - r.pts : "-";
 
-          body.innerHTML += `<tr>
-                <td>${currentPos}º</td><td>${r.name}</td><td>${r.pts}</td><td>${r.pl}</td>
-                <td style="color: ${colorT}">${tendencia}</td>
-                <td>${r.pts - pPts}</td><td>${r.pl - pPl}</td><td>${diffSuperior}</td>
-            </tr>`;
+          body.innerHTML += `<tr><td>${r.rank}º</td><td>${r.name}</td><td>${r.pts}</td><td>${r.pl}</td>
+            <td style="color: ${colorT}">${tendencia}</td>
+            <td>${r.pts - pPts}</td><td>${r.pl - pPl}</td><td>${diffSuperior}</td></tr>`;
         });
       }
 
@@ -230,20 +249,22 @@
           diffData = participants.map(() => []);
 
         data.forEach((row) => {
-          let rankings = getRanking(row); // Ahora ya trae la propiedad .rank
+          let rankings = getRanking(row);
           participants.forEach((p, i) => {
-            const pData = rankings.find(r => r.name === p);
-            const rank = pData ? pData.rank : 1; 
+            const pData = rankings.find((r) => r.name === p);
             const pts = parseInt(row[p + "_pts"]) || 0;
-            
-            posData[i].push(rank);
+            // console.log(pData)
+            posData[i].push(pData ? pData.rank : 1);
             ptsData[i].push(pts);
-            diffData[i].push(prevRow ? pts - (parseInt(prevRow[p + "_pts"]) || 0) : pts);
+            diffData[i].push(
+              prevRow ? pts - (parseInt(prevRow[p + "_pts"]) || 0) : pts,
+            );
           });
           prevRow = row;
         });
 
         const labels = data.map((d) => d.fecha);
+        // Configuración básica de gráficos (se mantiene tu estructura original)
         window.charts.push(
           new Chart(ctxs[0], {
             type: "line",
@@ -264,7 +285,11 @@
                   max: 6,
                   ticks: { stepSize: 1, color: "#fff" },
                 },
-                x: { ticks: { color: "#fff" } },
+              },
+              plugins: {
+                datalabels: {
+                  display: false,
+                },
               },
             },
           }),
@@ -278,7 +303,6 @@
                 label: p,
                 data: ptsData[i],
                 borderColor: colors[i],
-                tension: 0.3,
               })),
             },
             options: {
@@ -344,10 +368,7 @@
         data.forEach((row, index) => {
           let rowHtml = `<tr><td><input type="text" value="${row.fecha || ""}" onchange="updateRow(${index}, 'fecha', this.value)" style="width: 70px;"></td>`;
           participants.forEach((p) => {
-            rowHtml += `<td><div class="input-group">
-                <input type="number" value="${row[p + "_pts"] || 0}" onchange="updateRow(${index}, '${p}_pts', this.value)">
-                <input type="number" value="${row[p + "_pl"] || 0}" onchange="updateRow(${index}, '${p}_pl', this.value)" style="color:#38bdf8;">
-            </div></td>`;
+            rowHtml += `<td><div class="input-group"><input type="number" value="${row[p + "_pts"] || 0}" onchange="updateRow(${index}, '${p}_pts', this.value)"><input type="number" value="${row[p + "_pl"] || 0}" onchange="updateRow(${index}, '${p}_pl', this.value)" style="color:#1e293b;"></div></td>`;
           });
           rowHtml += `<td><button onclick="deleteRow(${index})">❌</button></td></tr>`;
           body.innerHTML += rowHtml;
@@ -378,13 +399,13 @@
       function importExcel(e) {
         const reader = new FileReader();
         reader.onload = (ev) => {
-          const wb = XLSX.read(ev.target.result, { type: "array" });
-          data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+          data = XLSX.utils.sheet_to_json(
+            XLSX.read(ev.target.result, { type: "array" }).Sheets[0],
+          );
           renderTable();
         };
         reader.readAsArrayBuffer(e.target.files[0]);
       }
-      //renderTable();
 
       loadInitialData().then(() => renderTable());
     </script>
