@@ -194,46 +194,60 @@
         return ranked;
       }
 
-function changeDate(dir) {
-    if (data.length === 0) return;
-    currentIndex = (currentIndex + dir + data.length) % data.length;
-    updateSummary();
-}
+      function changeDate(dir) {
+          if (data.length === 0) return;
+          currentIndex = (currentIndex + dir + data.length) % data.length;
+          updateSummary();
+      }
 
       function updateSummary() {
-        const body = document.getElementById("summaryBody");
-        const title = document.getElementById("summaryTitle");
-        body.innerHTML = "";
-        if (data.length === 0) return;
-
-        const targetIdx = currentIndex === -1 ? data.length - 1 : currentIndex;
-        title.innerText = `Resumen: ${data[targetIdx].fecha || "Jornada " + (targetIdx + 1)}`;
-
-        const currentRank = getRanking(data[targetIdx]);
-        const prevRank = targetIdx > 0 ? getRanking(data[targetIdx - 1]) : null;
-
-        currentRank.forEach((r, i) => {
-          const prevP = prevRank
-            ? prevRank.find((p) => p.name === r.name)
-            : null;
-          const diffPos = prevP ? prevP.rank - r.rank : 0;
-          let tendencia =
-            diffPos > 0
-              ? `⬆️ +${diffPos}`
-              : diffPos < 0
-                ? `⬇️ ${diffPos}`
-                : "🟰";
-          let colorT =
-            diffPos > 0 ? "#34d399" : diffPos < 0 ? "#f87171" : "#fff";
-
-          const pPts = prevP ? prevP.pts : 0;
-          const pPl = prevP ? prevP.pl : 0;
-          const diffSuperior = i > 0 ? currentRank[i - 1].pts - r.pts : "-";
-
-          body.innerHTML += `<tr><td>${r.rank}º</td><td>${r.name}</td><td>${r.pts}</td><td>${r.pl}</td>
-            <td style="color: ${colorT}">${tendencia}</td>
-            <td>${r.pts - pPts}</td><td>${r.pl - pPl}</td><td>${diffSuperior}</td></tr>`;
-        });
+          const body = document.getElementById("summaryBody");
+          const title = document.getElementById("summaryTitle");
+          body.innerHTML = "";
+          if (data.length === 0) return;
+      
+          const targetIdx = currentIndex === -1 ? data.length - 1 : currentIndex;
+          title.innerText = `Resumen: ${data[targetIdx].fecha || "Jornada " + (targetIdx + 1)}`;
+      
+          const currentRank = getRanking(data[targetIdx]);
+          const prevRank = targetIdx > 0 ? getRanking(data[targetIdx - 1]) : null;
+      
+          // --- NUEVO: Calculamos la diferencia de puntos de todos para hallar el máximo ---
+          const diffs = currentRank.map(r => {
+              const prevP = prevRank ? prevRank.find((p) => p.name === r.name) : null;
+              return (prevP ? r.pts - prevP.pts : r.pts);
+          });
+          const maxDiff = Math.max(...diffs);
+          // --------------------------------------------------------------------------------
+      
+          currentRank.forEach((r, i) => {
+              const prevP = prevRank ? prevRank.find((p) => p.name === r.name) : null;
+              const diffPos = prevP ? prevP.rank - r.rank : 0;
+              
+              // Calculamos la diferencia de puntos actual
+              const deltaPts = r.pts - (prevP ? prevP.pts : 0);
+              
+              // --- NUEVO: Determinamos si esta celda es la que tiene el máximo ---
+              const isMax = deltaPts === maxDiff && deltaPts > 0;
+              const styleMax = isMax ? 'background: #fbbf24; color: #000; font-weight: bold; border-radius: 4px;' : '';
+              // --------------------------------------------------------------------
+      
+              let tendencia = diffPos > 0 ? `⬆️ +${diffPos}` : diffPos < 0 ? `⬇️ ${diffPos}` : "🟰";
+              let colorT = diffPos > 0 ? "#34d399" : diffPos < 0 ? "#f87171" : "#fff";
+              const pPl = prevP ? prevP.pl : 0;
+              const diffSuperior = i > 0 ? currentRank[i - 1].pts - r.pts : "-";
+      
+              body.innerHTML += `<tr>
+                  <td>${r.rank}º</td>
+                  <td>${r.name}</td>
+                  <td>${r.pts}</td>
+                  <td>${r.pl}</td>
+                  <td style="color: ${colorT}">${tendencia}</td>
+                  <td style="${styleMax}">${deltaPts}</td>
+                  <td>${r.pl - pPl}</td>
+                  <td>${diffSuperior}</td>
+              </tr>`;
+          });
       }
 
       function updateCharts() {
