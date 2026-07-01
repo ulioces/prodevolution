@@ -99,7 +99,7 @@
       Chart.register(ChartDataLabels);
 
       const colors = ["#f87171", "#fbbf24", "#34d399", "#38bdf8", "#c084fc"];
-      let data = JSON.parse(localStorage.getItem("porraData")) || [];
+      let data = [];//JSON.parse(localStorage.getItem("porraData")) || [];
       const participants = [
         "CFVELEZM",
         "ALEJANDRO_P",
@@ -107,6 +107,34 @@
         "ULIOCES",
         "ALEJANDRO_S",
       ];
+
+      // Función para intentar cargar el archivo del directorio si no hay datos
+      async function loadInitialData() {
+        // Solo intentamos cargar si el localStorage está vacío
+       // if (data.length === 0) {
+          try {
+            const response = await fetch("porra_data.xlsx");
+            if (!response.ok) throw new Error("No se encontró el archivo");
+
+            const arrayBuffer = await response.arrayBuffer();
+            const wb = XLSX.read(new Uint8Array(arrayBuffer), {
+              type: "array",
+            });
+            data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+
+            renderTable(); // Refrescamos la tabla con los datos importados
+            console.log("Datos cargados desde el archivo porra_data.xlsx");
+          } catch (error) {
+            console.log(
+              "No se pudo cargar el archivo automático o no existe:",
+              error,
+            );
+          }
+        //}
+      }
+
+      // Llamar a la función al iniciar
+      loadInitialData();
 
       function renderTable() {
         const body = document.getElementById("tableBody");
