@@ -78,6 +78,12 @@
         opacity: 0.3;
         cursor: not-allowed;
       }
+      #togglePlenos:checked + span {
+        background: #38bdf8;
+      }
+      #togglePlenos:checked ~ #switchThumb {
+        transform: translateX(20px);
+      }
     </style>
   </head>
   <body>
@@ -105,16 +111,70 @@
         </thead>
         <tbody id="summaryBody"></tbody>
       </table>
-
+      <h3>El + capito</h3>
+      <div
+        id="reyWidget"
+        style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 30px"
+      ></div>
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 20px;
+          justify-content: center;
+        "
+      >
+        <span style="color: #94a3b8; font-size: 14px">Puntos</span>
+        <label
+          style="
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+          "
+        >
+          <input
+            type="checkbox"
+            id="togglePlenos"
+            onchange="renderTable()"
+            style="opacity: 0; width: 0; height: 0"
+          />
+          <span
+            style="
+              position: absolute;
+              cursor: pointer;
+              inset: 0;
+              background: #334155;
+              border-radius: 24px;
+              transition: 0.3s;
+            "
+          ></span>
+          <span
+            id="switchThumb"
+            style="
+              position: absolute;
+              height: 18px;
+              width: 18px;
+              left: 3px;
+              bottom: 3px;
+              background: #38bdf8;
+              border-radius: 50%;
+              transition: 0.3s;
+            "
+          ></span>
+        </label>
+        <span style="color: #94a3b8; font-size: 14px">Plenos</span>
+      </div>
       <h3>Posiciones</h3>
       <canvas id="evolucionChart"></canvas>
       <h3>Distancia entre participantes</h3>
       <canvas id="participacionChart"></canvas>
       <h3>Puntuación Absoluta</h3>
+
       <canvas id="puntosChart"></canvas>
       <h3>Distribución de puntos (%)</h3>
       <canvas id="porcentajeChart"></canvas>
-
       <h3>Puntos Ganados</h3>
       <canvas id="diferenciaChart"></canvas>
 
@@ -179,11 +239,11 @@
         }
       }
 
-      function getRanking(row) {
+      function getRanking(row, field = "_pts") {
         let participantsData = participants
           .map((p) => ({
             name: p,
-            pts: parseInt(row[p + "_pts"]) || 0,
+            pts: parseInt(row[p + field]) || 0,
             pl: parseInt(row[p + "_pl"]) || 0,
           }))
           .sort((a, b) => b.pts - a.pts || b.pl - a.pl);
@@ -287,6 +347,9 @@
       }
 
       function updateCharts() {
+        const usePlenos = document.getElementById("togglePlenos")?.checked;
+        const field = usePlenos ? "_pl" : "_pts";
+
         const ctxs = ["evolucionChart", "puntosChart", "diferenciaChart"].map(
           (id) => document.getElementById(id).getContext("2d"),
         );
@@ -299,15 +362,14 @@
           diffData = participants.map(() => []);
 
         data.forEach((row) => {
-          let rankings = getRanking(row);
+          let rankings = getRanking(row, field); // ← pasá field acá
           participants.forEach((p, i) => {
             const pData = rankings.find((r) => r.name === p);
-            const pts = parseInt(row[p + "_pts"]) || 0;
-            // console.log(pData)
+            const pts = parseInt(row[p + field]) || 0;
             posData[i].push(pData ? pData.rank : 1);
             ptsData[i].push(pts);
             diffData[i].push(
-              prevRow ? pts - (parseInt(prevRow[p + "_pts"]) || 0) : pts,
+              prevRow ? pts - (parseInt(prevRow[p + field]) || 0) : pts,
             );
           });
           prevRow = row;
@@ -354,6 +416,7 @@
                 label: p,
                 data: ptsData[i],
                 borderColor: colors[i],
+                tension: 0.3,
               })),
             },
             options: {
@@ -416,11 +479,11 @@
 
         data.forEach((row) => {
           const total = participants.reduce(
-            (sum, p) => sum + (parseInt(row[p + "_pts"]) || 0),
+            (sum, p) => sum + (parseInt(row[p + field]) || 0),
             0,
           );
           participants.forEach((p, i) => {
-            const pts = parseInt(row[p + "_pts"]) || 0;
+            const pts = parseInt(row[p + field]) || 0;
             partData[i].push(
               total > 0 ? parseFloat(((pts / total) * 100).toFixed(1)) : 0,
             );
@@ -478,9 +541,9 @@
 
         data.forEach((row, idx) => {
           const diffs = participants.map((p) => {
-            const pts = parseInt(row[p + "_pts"]) || 0;
+            const pts = parseInt(row[p + field]) || 0;
             if (idx === 0) return pts; // primera fecha: usá los puntos directamente
-            const prevPts = parseInt(data[idx - 1][p + "_pts"]) || 0;
+            const prevPts = parseInt(data[idx - 1][p + field]) || 0;
             return Math.max(pts - prevPts, 0);
           });
           const total = diffs.reduce((sum, d) => sum + d, 0);
@@ -536,6 +599,69 @@
         );
       }
 
+      function updateReyWidget() {
+        const root = document.getElementById("reyWidget");
+        if (!root || data.length === 0) return;
+
+        const wins = {};
+        participants.forEach((p) => (wins[p] = 0));
+
+        data.forEach((row, idx) => {
+          const diffs = participants.map((p, i) => ({
+            name: p,
+            color: colors[i],
+            diff:
+              idx === 0
+                ? parseInt(row[p + "_pts"]) || 0
+                : Math.max(
+                    (parseInt(row[p + "_pts"]) || 0) -
+                      (parseInt(data[idx - 1][p + "_pts"]) || 0),
+                    0,
+                  ),
+          }));
+          const maxDiff = Math.max(...diffs.map((d) => d.diff));
+          if (maxDiff > 0)
+            diffs
+              .filter((d) => d.diff === maxDiff)
+              .forEach((d) => wins[d.name]++);
+        });
+
+        const sorted = participants
+          .map((p, i) => ({ name: p, color: colors[i], wins: wins[p] }))
+          .sort((a, b) => b.wins - a.wins);
+
+        const medals = ["👑", "🥈", "🥉", "☠️", "💅"];
+
+        root.innerHTML = sorted
+          .map(
+            (p, i) => `
+        <div style="
+            background:#1e293b;
+            border-radius:12px;
+            padding:16px 20px;
+            flex:1;
+            min-width:140px;
+            text-align:center;
+            
+            ${i === 0 ? "box-shadow: 0 0 16px 4px #fbbf2466;" : ""}
+            opacity: ${p.wins === 0 ? "0.4" : "1"};
+        ">
+            <div style="font-size:${i === 0 ? "32px" : "22px"} ${i === 0 ? ";margin-top: -14px;" : ""}">${medals[i]}</div>
+            <div style="
+                width:44px; height:44px; border-radius:50%;
+                background:${p.color}; margin:8px auto;
+                display:flex; align-items:center; justify-content:center;
+                font-weight:bold; font-size:13px; color:#0f172a;
+            ">${p.name.slice(0, 2)}</div>
+            <div style="font-size:14px; font-weight:bold; color:#f8fafc; margin-bottom:4px;">${p.name}</div>
+            <div style="font-size:22px; font-weight:bold; color:${p.color};">${p.wins}</div>
+            <div style="font-size:11px; color:#94a3b8;">jornada${p.wins !== 1 ? "s" : ""}</div>
+        </div>
+    `,
+          )
+          .join("");
+      }
+
       function renderTable() {
         const body = document.getElementById("tableBody");
         body.innerHTML = "";
@@ -551,6 +677,7 @@
         if (currentIndex === -1) currentIndex = data.length - 1;
         updateNavButtons(); // ← agregá esta línea
         updateCharts();
+        updateReyWidget(); // ← nueva línea
         localStorage.setItem("porraData", JSON.stringify(data));
       }
 
