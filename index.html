@@ -74,6 +74,10 @@
         border-radius: 4px;
         margin: 2px;
       }
+      .nav-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
     </style>
   </head>
   <body>
@@ -81,14 +85,14 @@
       <h1>Evolución del Ranking</h1>
 
       <div class="nav-header">
-        <button class="nav-btn" onclick="changeDate(-1)">◀</button>
+        <button class="nav-btn" id="back" onclick="changeDate(-1)">◀</button>
         <h2 id="summaryTitle">Resumen Actual</h2>
-        <button class="nav-btn" onclick="changeDate(1)">▶</button>
+        <button class="nav-btn" id="next" onclick="changeDate(1)">▶</button>
       </div>
 
       <table id="summaryTable" style="background: #1e293b; margin-bottom: 30px">
         <thead>
-          <tr >
+          <tr>
             <th style="background: #334155">Pos</th>
             <th style="background: #334155">Participante</th>
             <th style="background: #334155">Pts</th>
@@ -104,8 +108,13 @@
 
       <h3>Posiciones</h3>
       <canvas id="evolucionChart"></canvas>
+      <h3>Distancia entre participantes</h3>
+      <canvas id="participacionChart"></canvas>
       <h3>Puntuación Absoluta</h3>
       <canvas id="puntosChart"></canvas>
+      <h3>Distribución de puntos (%)</h3>
+      <canvas id="porcentajeChart"></canvas>
+
       <h3>Puntos Ganados</h3>
       <canvas id="diferenciaChart"></canvas>
 
@@ -150,19 +159,24 @@
         "ULIOCES",
         "ALEJANDRO_S",
       ];
-      let data = [];//JSON.parse(localStorage.getItem("porraData")) || [];
+      let data = [];
       let currentIndex = -1; // -1 es el último registro
 
       async function loadInitialData() {
         if (data.length > 0) return;
         try {
-          const response = await fetch("data.xlsx");
-          if (!response.ok) return;
+          const response = await fetch("data.xlsx?" + Date.now());
+          if (!response.ok) {
+            data = JSON.parse(localStorage.getItem("porraData")) || [];
+            return;
+          }
           const arrayBuffer = await response.arrayBuffer();
           const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: "array" });
           data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
           renderTable();
-        } catch (e) {}
+        } catch (e) {
+          data = JSON.parse(localStorage.getItem("porraData")) || [];
+        }
       }
 
       function getRanking(row) {
@@ -174,7 +188,6 @@
           }))
           .sort((a, b) => b.pts - a.pts || b.pl - a.pl);
 
-        
         // Asignamos posiciones considerando empates
         let ranked = [];
         let currentPos = 1;
@@ -195,12 +208,22 @@
       }
 
       function changeDate(dir) {
-          if (data.length === 0) return;
-          currentIndex = (currentIndex + dir + data.length) % data.length;
-          updateSummary();
+        if (data.length === 0) return;
+        currentIndex = Math.max(
+          0,
+          Math.min(currentIndex + dir, data.length - 1),
+        );
+        updateSummary();
+        updateNavButtons();
       }
 
-     function updateSummary() {
+      function updateNavButtons() {
+        document.querySelector(".nav-btn:first-child").disabled =
+          currentIndex <= 0;
+        document.querySelector(".nav-btn:last-child").disabled =
+          currentIndex >= data.length - 1;
+      }
+      function updateSummary() {
         const body = document.getElementById("summaryBody");
         const title = document.getElementById("summaryTitle");
         body.innerHTML = "";
@@ -233,9 +256,7 @@
 
           // --- NUEVO: Determinamos si esta celda es la que tiene el máximo ---
           const isMax = deltaPts === maxDiff && deltaPts > 0;
-          const styleMax = isMax
-            ? "background: #fbbf2421"
-            : "";
+          const styleMax = isMax ? "background: #fbbf2421" : "";
           // --------------------------------------------------------------------
 
           let tendencia =
@@ -248,8 +269,9 @@
             diffPos > 0 ? "#34d399" : diffPos < 0 ? "#f87171" : "#fff";
           const pPl = prevP ? prevP.pl : 0;
           const diffSuperior = i > 0 ? currentRank[i - 1].pts - r.pts : "-";
-          const showRey = isMax ? " 👑" : '';
-          const styleLoser = !isMax && r.rank == 4 ? ';background: #f9120638;' : '';
+          const showRey = isMax ? " 👑" : "";
+          const styleLoser =
+            !isMax && r.rank == 4 ? ";background: #f9120638;" : "";
 
           body.innerHTML += `<tr style="${styleMax} ${styleLoser}">
             <td>${r.rank}º</td>
@@ -263,6 +285,7 @@
         </tr>`;
         });
       }
+
       function updateCharts() {
         const ctxs = ["evolucionChart", "puntosChart", "diferenciaChart"].map(
           (id) => document.getElementById(id).getContext("2d"),
@@ -321,6 +344,7 @@
             },
           }),
         );
+
         window.charts.push(
           new Chart(ctxs[1], {
             type: "line",
@@ -387,6 +411,129 @@
             },
           }),
         );
+
+        const partData = participants.map(() => []);
+
+        data.forEach((row) => {
+          const total = participants.reduce(
+            (sum, p) => sum + (parseInt(row[p + "_pts"]) || 0),
+            0,
+          );
+          participants.forEach((p, i) => {
+            const pts = parseInt(row[p + "_pts"]) || 0;
+            partData[i].push(
+              total > 0 ? parseFloat(((pts / total) * 100).toFixed(1)) : 0,
+            );
+          });
+        });
+
+        const maxPartY = Math.max(
+          ...partData.map((series) => Math.max(...series)),
+        );
+
+        window.charts.push(
+          new Chart(
+            document.getElementById("participacionChart").getContext("2d"),
+            {
+              type: "line",
+              data: {
+                labels,
+                datasets: participants.map((p, i) => ({
+                  label: p,
+                  data: partData[i],
+                  borderColor: colors[i],
+                  backgroundColor: colors[i] + "22",
+                  fill: false,
+                  tension: 0.3,
+                })),
+              },
+              options: {
+                responsive: true,
+                scales: {
+                  y: {
+                    min: 0,
+                    max: Math.ceil(maxPartY / 10) * 10,
+                    ticks: {
+                      color: "#fff",
+                      callback: (v) => v + "%",
+                    },
+                  },
+                  x: { ticks: { color: "#fff" } },
+                },
+                plugins: {
+                  datalabels: { display: false },
+                  tooltip: {
+                    callbacks: {
+                      label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}%`,
+                    },
+                  },
+                },
+              },
+            },
+          ),
+        );
+
+        const pctData = participants.map(() => []);
+        const diffTotals = []; // suma de puntos ganados en esa jornada
+
+        data.forEach((row, idx) => {
+          const diffs = participants.map((p) => {
+            const pts = parseInt(row[p + "_pts"]) || 0;
+            if (idx === 0) return pts; // primera fecha: usá los puntos directamente
+            const prevPts = parseInt(data[idx - 1][p + "_pts"]) || 0;
+            return Math.max(pts - prevPts, 0);
+          });
+          const total = diffs.reduce((sum, d) => sum + d, 0);
+          participants.forEach((p, i) => {
+            pctData[i].push(
+              total > 0 ? parseFloat(((diffs[i] / total) * 100).toFixed(1)) : 0,
+            );
+          });
+        });
+        const maxY = Math.max(...pctData.map((series) => Math.max(...series)));
+
+        window.charts.push(
+          new Chart(
+            document.getElementById("porcentajeChart").getContext("2d"),
+            {
+              type: "line",
+              data: {
+                labels,
+                datasets: participants.map((p, i) => ({
+                  label: p,
+                  data: pctData[i],
+                  borderColor: colors[i],
+                  // backgroundColor: colors[i] + "22",
+                  //fill: true,
+                  tension: 0.3,
+                })),
+              },
+              options: {
+                responsive: true,
+                scales: {
+                  y: {
+                    //stacked: true,
+                    min: 0,
+                    max: Math.ceil(maxY / 10) * 10,
+                    ticks: {
+                      color: "#fff",
+                      callback: (v) => v + "%",
+                    },
+                  },
+                  x: { ticks: { color: "#fff" } },
+                },
+                plugins: {
+                  datalabels: { display: false },
+                  tooltip: {
+                    callbacks: {
+                      label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}%`,
+                    },
+                  },
+                },
+              },
+            },
+          ),
+        );
       }
 
       function renderTable() {
@@ -401,6 +548,8 @@
           body.innerHTML += rowHtml;
         });
         updateSummary();
+        if (currentIndex === -1) currentIndex = data.length - 1;
+        updateNavButtons(); // ← agregá esta línea
         updateCharts();
         localStorage.setItem("porraData", JSON.stringify(data));
       }
