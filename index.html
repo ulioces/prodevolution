@@ -2,7 +2,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>-ProdeVolution-</title>
+    <title>-🏆 ProdeVolution-</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -84,12 +84,49 @@
       #togglePlenos:checked ~ #switchThumb {
         transform: translateX(20px);
       }
+      @keyframes bounce {
+        0%,
+        100% {
+          transform: translateY(0);
+          animation-timing-function: ease-in;
+        }
+        50% {
+          transform: translateY(-40px);
+          animation-timing-function: ease-out;
+        }
+      }
+      #ball {
+        animation: bounce 0.7s infinite;
+      }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>Evolución del Ranking</h1>
-
+      <h1>BlikUP 🏆</h1>
+      <div
+        id="loading"
+        style="
+          display: none;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 40px 0;
+          gap: 16px;
+        "
+      >
+        <div
+          id="ball"
+          style="
+            width: 20px;
+            height: 20px;
+            background: #38bdf8;
+            border-radius: 50%;
+          "
+        ></div>
+        <p style="color: #94a3b8; font-size: 14px; margin: 0">
+          Recuperando información...
+        </p>
+      </div>
       <div class="nav-header">
         <button class="nav-btn" id="back" onclick="changeDate(-1)">◀</button>
         <h2 id="summaryTitle">Resumen Actual</h2>
@@ -241,6 +278,7 @@
       }*/
 
       async function loadInitialData() {
+        document.getElementById("loading").style.display = "flex";
         try {
           const response = await fetch(
             "https://stats-ubqi.onrender.com/api/ranking",
@@ -252,9 +290,10 @@
           console.error(e);
           data = JSON.parse(localStorage.getItem("porraData")) || [];
           renderTable();
+        } finally {
+          document.getElementById("loading").style.display = "none";
         }
       }
-
       function getRanking(row, field = "_pts") {
         let participantsData = participants
           .map((p) => ({
