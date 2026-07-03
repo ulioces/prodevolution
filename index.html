@@ -2,7 +2,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>Evolución Porra Completa</title>
+    <title>-ProdeVolution-</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -222,7 +222,7 @@
       let data = [];
       let currentIndex = -1; // -1 es el último registro
 
-      async function loadInitialData() {
+      /* function loadInitialData() {
         if (data.length > 0) return;
         try {
           const response = await fetch("data.xlsx?" + Date.now());
@@ -235,7 +235,23 @@
           data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
           renderTable();
         } catch (e) {
+          console.error(e)
           data = JSON.parse(localStorage.getItem("porraData")) || [];
+        }
+      }*/
+
+      async function loadInitialData() {
+        try {
+          const response = await fetch(
+            "https://stats-ubqi.onrender.com/api/ranking",
+          );
+          if (!response.ok) throw new Error("Error al cargar");
+          data = await response.json();
+          renderTable();
+        } catch (e) {
+          console.error(e);
+          data = JSON.parse(localStorage.getItem("porraData")) || [];
+          renderTable();
         }
       }
 
