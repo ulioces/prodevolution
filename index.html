@@ -256,7 +256,7 @@
         "ULIOCES",
         "ALEJANDRO_S",
       ];
-      let data = [];
+      let data = JSON.parse(localStorage.getItem("porraData")) || [];
       let currentIndex = -1; // -1 es el último registro
 
       /* function loadInitialData() {
@@ -285,11 +285,12 @@
           );
           if (!response.ok) throw new Error("Error al cargar");
           data = await response.json();
+          localStorage.setItem("porraData", JSON.stringify(data));
           renderTable();
         } catch (e) {
           console.error(e);
-          data = JSON.parse(localStorage.getItem("porraData")) || [];
-          renderTable();
+          // data = JSON.parse(localStorage.getItem("porraData")) || [];
+          //renderTable();
         } finally {
           document.getElementById("loading").style.display = "none";
         }
@@ -733,7 +734,6 @@
         updateNavButtons(); // ← agregá esta línea
         updateCharts();
         updateReyWidget(); // ← nueva línea
-        localStorage.setItem("porraData", JSON.stringify(data));
       }
 
       function updateRow(i, k, v) {
