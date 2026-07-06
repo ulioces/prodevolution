@@ -102,7 +102,7 @@
   </head>
   <body>
     <div class="container">
-      <h1>BlinkUP🏆</h1>
+      <h1>BlinkUP 🏆</h1>
       <div
         id="loading"
         style="
@@ -276,6 +276,12 @@
           data = JSON.parse(localStorage.getItem("porraData")) || [];
         }
       }*/
+      function normalizeDate(date) {
+        if (date.includes("07/")) {
+          return `${date.split("/")[1]}/07`;
+        }
+        return date;
+      }
 
       async function loadInitialData() {
         document.getElementById("loading").style.display = "flex";
@@ -286,6 +292,8 @@
           );
           if (!response.ok) throw new Error("Error al cargar");
           data = await response.json();
+          data = data.map((dat) => ({... dat, fecha: normalizeDate(dat.fecha)}))
+          
           localStorage.setItem("porraData", JSON.stringify(data));
           renderTable();
         } catch (e) {
