@@ -27,7 +27,7 @@
         align-items: center;
         gap: 15px;
         justify-content: center;
-        margin-top: 20px;
+        margin-top: 10px;
       }
       .nav-btn {
         background: var(--accent);
@@ -95,15 +95,45 @@
           animation-timing-function: ease-out;
         }
       }
+
+      @keyframes girarBalon {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
       #ball {
-        animation: bounce 0.7s infinite;
+        width: 20px;
+        height: 20px;
+        background-color: #ffffff;
+        background-image:
+          radial-gradient(circle, #0f172a 35%, transparent 36%),
+          radial-gradient(circle, #0f172a 35%, transparent 36%);
+        background-size: 10px 10px;
+        background-position:
+          0 0,
+          5px 5px;
+        border: 1px solid #0f172a;
+        border-radius: 50%;
+        box-shadow:
+          inset -2px -2px 3px rgba(0, 0, 0, 0.4),
+          0 1px 2px rgba(0, 0, 0, 0.3);
+
+        /* Indicamos que las transformaciones se sumen */
+        animation:
+          bounce 0.7s infinite,
+          girarBalon 3s linear infinite;
+        animation-composition: add;
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <div style="text-align:center; padding: 10px 0;">
-        <img src="./logo.png" style="max-width: 500px;border-radius: 30px;" />
+      <div style="text-align: center; padding: 10px 0">
+        <img src="./logo.png" style="max-width: 500px; border-radius: 30px" />
       </div>
       <div
         id="loading"
@@ -112,19 +142,11 @@
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          padding: 40px 0;
+          padding: 40px 0 0 0;
           gap: 16px;
         "
       >
-        <div
-          id="ball"
-          style="
-            width: 20px;
-            height: 20px;
-            background: #38bdf8;
-            border-radius: 50%;
-          "
-        ></div>
+        <div id="ball"></div>
         <p style="color: #94a3b8; font-size: 14px; margin: 0">
           Recuperando información...
         </p>
@@ -294,8 +316,11 @@
           );
           if (!response.ok) throw new Error("Error al cargar");
           data = await response.json();
-          data = data.map((dat) => ({... dat, fecha: normalizeDate(dat.fecha)}))
-          
+          data = data.map((dat) => ({
+            ...dat,
+            fecha: normalizeDate(dat.fecha),
+          }));
+
           localStorage.setItem("porraData", JSON.stringify(data));
           renderTable();
         } catch (e) {
@@ -707,7 +732,7 @@
             border-radius:12px;
             padding:16px 20px;
             flex:1;
-            min-width:140px;
+            min-width:80px;
             text-align:center;
             
             ${i === 0 ? "box-shadow: 0 0 16px 4px #fbbf2466;" : ""}
