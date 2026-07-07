@@ -312,26 +312,28 @@
       async function loadInitialData() {
         document.getElementById("loading").style.display = "flex";
         renderTable();
-        try {
-          const response = await fetch(
-            "https://stats-ubqi.onrender.com/api/ranking",
-          );
-          if (!response.ok) throw new Error("Error al cargar");
-          data = await response.json();
-          data = data.map((dat) => ({
-            ...dat,
-            fecha: normalizeDate(dat.fecha),
-          }));
+        setTimeout(async () => {
+          try {
+            const response = await fetch(
+              "https://stats-ubqi.onrender.com/api/ranking",
+            );
+            if (!response.ok) throw new Error("Error al cargar");
+            data = await response.json();
+            data = data.map((dat) => ({
+              ...dat,
+              fecha: normalizeDate(dat.fecha),
+            }));
 
-          localStorage.setItem("porraData", JSON.stringify(data));
-          renderTable();
-        } catch (e) {
-          console.error(e);
-          // data = JSON.parse(localStorage.getItem("porraData")) || [];
-          //renderTable();
-        } finally {
-          document.getElementById("loading").style.display = "none";
-        }
+            localStorage.setItem("porraData", JSON.stringify(data));
+            renderTable();
+          } catch (e) {
+            console.error(e);
+            // data = JSON.parse(localStorage.getItem("porraData")) || [];
+            //renderTable();
+          } finally {
+            document.getElementById("loading").style.display = "none";
+          }
+        }, 1000);
       }
       function getRanking(row, field = "_pts") {
         let participantsData = participants
