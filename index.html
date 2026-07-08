@@ -273,7 +273,7 @@
     </div>
 
     <script>
-      const FECHAS_HIDDEN = ["07/07", "08/07"];
+      const FECHAS_HIDDEN = ["08/07"];
       Chart.register(ChartDataLabels);
       const colors = ["#f87171", "#fbbf24", "#34d399", "#38bdf8", "#c084fc"];
       const participants = [
@@ -325,7 +325,7 @@
                 ...dat,
                 fecha: normalizeDate(dat.fecha),
               }))
-              .filter((dat) => !FECHAS_HIDDEN.includes(fecha));
+              .filter((dat) => !FECHAS_HIDDEN.includes(dat.fecha));
 
             localStorage.setItem("porraData", JSON.stringify(data));
             renderTable();
