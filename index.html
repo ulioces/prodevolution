@@ -273,6 +273,7 @@
     </div>
 
     <script>
+      const FECHAS_HIDDEN = process.env.FECHAS_HIDDEN?.split(',') ?? [];
       Chart.register(ChartDataLabels);
       const colors = ["#f87171", "#fbbf24", "#34d399", "#38bdf8", "#c084fc"];
       const participants = [
@@ -319,10 +320,12 @@
             );
             if (!response.ok) throw new Error("Error al cargar");
             data = await response.json();
-            data = data.map((dat) => ({
-              ...dat,
-              fecha: normalizeDate(dat.fecha),
-            }));
+            data = data
+              .map((dat) => ({
+                ...dat,
+                fecha: normalizeDate(dat.fecha),
+              }))
+              .filter((dat) => !FECHAS_HIDDEN.includes(fecha));
 
             localStorage.setItem("porraData", JSON.stringify(data));
             renderTable();
