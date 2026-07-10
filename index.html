@@ -287,23 +287,6 @@
       let data = JSON.parse(localStorage.getItem("porraData")) || [];
       let currentIndex = -1; // -1 es el último registro
 
-      /* function loadInitialData() {
-        if (data.length > 0) return;
-        try {
-          const response = await fetch("data.xlsx?" + Date.now());
-          if (!response.ok) {
-            data = JSON.parse(localStorage.getItem("porraData")) || [];
-            return;
-          }
-          const arrayBuffer = await response.arrayBuffer();
-          const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: "array" });
-          data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-          renderTable();
-        } catch (e) {
-          console.error(e)
-          data = JSON.parse(localStorage.getItem("porraData")) || [];
-        }
-      }*/
       function normalizeDate(date) {
         if (date.includes("07/")) {
           return `${date.split("/")[1]}/07`;
@@ -313,9 +296,7 @@
 
       async function loadInitialData() {
         document.getElementById("loading").style.display = "flex";
-        renderTable();
-        setTimeout(async () => {
-          try {
+        try {
             const response = await fetch(
               "https://stats-ubqi.onrender.com/api/ranking",
             );
@@ -328,16 +309,14 @@
               }))
               .filter((dat) => !FECHAS_HIDDEN.includes(dat.fecha));
 
+            await new Promise(resolve => setTimeout(resolve, 2000)); // delay de 2 segundos
+
             localStorage.setItem("porraData", JSON.stringify(data));
-            renderTable();
-          } catch (e) {
-            console.error(e);
-            // data = JSON.parse(localStorage.getItem("porraData")) || [];
-            //renderTable();
-          } finally {
-            document.getElementById("loading").style.display = "none";
-          }
-        }, 2000);
+        } catch (e) {
+          console.error(e);
+        } finally {
+          document.getElementById("loading").style.display = "none";
+        }
       }
       function getRanking(row, field = "_pts") {
         let participantsData = participants
@@ -434,15 +413,15 @@
             !isMax && r.rank == 4 ? ";background: #f9120638;" : "";
 
           body.innerHTML += `<tr style="${styleMax} ${styleLoser}">
-            <td>${r.rank}º</td>
-            <td>${r.name}${showRey}</td>
-            <td>${r.pts}</td>
-            <td>${r.pl}</td>
-            <td style="color: ${colorT}">${tendencia}</td>
-            <td>${deltaPts}</td>
-            <td>${r.pl - pPl}</td>
-            <td>${diffSuperior}</td>
-        </tr>`;
+              <td>${r.rank}º</td>
+              <td>${r.name}${showRey}</td>
+              <td>${r.pts}</td>
+              <td>${r.pl}</td>
+              <td style="color: ${colorT}">${tendencia}</td>
+              <td>${deltaPts}</td>
+              <td>${r.pl - pPl}</td>
+              <td>${diffSuperior}</td>
+          </tr>`;
         });
       }
 
@@ -735,29 +714,29 @@
         root.innerHTML = sorted
           .map(
             (p, i) => `
-        <div style="
-            background:#1e293b;
-            border-radius:12px;
-            padding:16px 20px;
-            flex:1;
-            min-width:80px;
-            text-align:center;
-            
-            ${i === 0 ? "box-shadow: 0 0 16px 4px #fbbf2466;" : ""}
-            opacity: ${p.wins === 0 ? "0.4" : "1"};
-        ">
-            <div style="font-size:${i === 0 ? "32px" : "22px"} ${i === 0 ? ";margin-top: -14px;" : ""}">${medals[i]}</div>
-            <div style="
-                width:44px; height:44px; border-radius:50%;
-                background:${p.color}; margin:8px auto;
-                display:flex; align-items:center; justify-content:center;
-                font-weight:bold; font-size:13px; color:#0f172a;
-            ">${p.name.slice(0, 2)}</div>
-            <div style="font-size:14px; font-weight:bold; color:#f8fafc; margin-bottom:4px;">${p.name}</div>
-            <div style="font-size:22px; font-weight:bold; color:${p.color};">${p.wins}</div>
-            <div style="font-size:11px; color:#94a3b8;">jornada${p.wins !== 1 ? "s" : ""}</div>
-        </div>
-    `,
+          <div style="
+              background:#1e293b;
+              border-radius:12px;
+              padding:16px 20px;
+              flex:1;
+              min-width:80px;
+              text-align:center;
+
+              ${i === 0 ? "box-shadow: 0 0 16px 4px #fbbf2466;" : ""}
+              opacity: ${p.wins === 0 ? "0.4" : "1"};
+          ">
+              <div style="font-size:${i === 0 ? "32px" : "22px"} ${i === 0 ? ";margin-top: -14px;" : ""}">${medals[i]}</div>
+              <div style="
+                  width:44px; height:44px; border-radius:50%;
+                  background:${p.color}; margin:8px auto;
+                  display:flex; align-items:center; justify-content:center;
+                  font-weight:bold; font-size:13px; color:#0f172a;
+              ">${p.name.slice(0, 2)}</div>
+              <div style="font-size:14px; font-weight:bold; color:#f8fafc; margin-bottom:4px;">${p.name}</div>
+              <div style="font-size:22px; font-weight:bold; color:${p.color};">${p.wins}</div>
+              <div style="font-size:11px; color:#94a3b8;">jornada${p.wins !== 1 ? "s" : ""}</div>
+          </div>
+      `,
           )
           .join("");
       }
@@ -809,6 +788,7 @@
         reader.readAsArrayBuffer(e.target.files[0]);
       }
 
+      renderTable();
       loadInitialData().then(() => renderTable());
     </script>
   </body>
