@@ -275,6 +275,7 @@
 
     <script>
       const FECHAS_HIDDEN = ["08/07", "13/07"];
+      const CUARTOS = ["09/07", "10/07", "11/07", "12/07"];
       Chart.register(ChartDataLabels);
       const colors = ["#f87171", "#fbbf24", "#34d399", "#38bdf8", "#c084fc"];
       const participants = [
@@ -303,7 +304,7 @@
           if (!response.ok) throw new Error("Error al cargar");
 
           await new Promise((resolve) => setTimeout(resolve, 2000)); // delay de 2 segundos
-          
+
           data = await response.json();
           data = data
             .map((dat) => ({
@@ -311,6 +312,7 @@
               fecha: normalizeDate(dat.fecha),
             }))
             .filter((dat) => !FECHAS_HIDDEN.includes(dat.fecha));
+            
 
           currentIndex = -1; // ← resetea al último dato nuevo
           localStorage.setItem("porraData", JSON.stringify(data));
