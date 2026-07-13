@@ -274,7 +274,7 @@
     </div>
 
     <script>
-      const FECHAS_HIDDEN = ["08/07"];
+      const FECHAS_HIDDEN = ["08/07", "13/07"];
       Chart.register(ChartDataLabels);
       const colors = ["#f87171", "#fbbf24", "#34d399", "#38bdf8", "#c084fc"];
       const participants = [
@@ -297,21 +297,23 @@
       async function loadInitialData() {
         document.getElementById("loading").style.display = "flex";
         try {
-            const response = await fetch(
-              "https://stats-ubqi.onrender.com/api/ranking",
-            );
-            if (!response.ok) throw new Error("Error al cargar");
-            data = await response.json();
-            data = data
-              .map((dat) => ({
-                ...dat,
-                fecha: normalizeDate(dat.fecha),
-              }))
-              .filter((dat) => !FECHAS_HIDDEN.includes(dat.fecha));
+          const response = await fetch(
+            "https://stats-ubqi.onrender.com/api/ranking",
+          );
+          if (!response.ok) throw new Error("Error al cargar");
 
-            await new Promise(resolve => setTimeout(resolve, 2000)); // delay de 2 segundos
+          await new Promise((resolve) => setTimeout(resolve, 2000)); // delay de 2 segundos
+          
+          data = await response.json();
+          data = data
+            .map((dat) => ({
+              ...dat,
+              fecha: normalizeDate(dat.fecha),
+            }))
+            .filter((dat) => !FECHAS_HIDDEN.includes(dat.fecha));
 
-            localStorage.setItem("porraData", JSON.stringify(data));
+          currentIndex = -1; // ← resetea al último dato nuevo
+          localStorage.setItem("porraData", JSON.stringify(data));
         } catch (e) {
           console.error(e);
         } finally {
